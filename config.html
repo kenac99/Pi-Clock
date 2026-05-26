@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clock Config</title>
+  <style>
+    @font-face {
+      font-family: 'DS-Digital';
+      src: url('fonts/DS-DIGIB.TTF') format('truetype');
+      font-weight: bold;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #aaa;
+      font-family: 'DS-Digital', monospace;
+      padding: 40px 30px;
+      min-height: 100vh;
+    }
+    h1 { font-size: 48px; color: #fff; margin-bottom: 40px; letter-spacing: 4px; }
+    .section { margin-bottom: 36px; }
+    label { display: block; font-size: 28px; letter-spacing: 2px; margin-bottom: 10px; color: #888; }
+    .row { display: flex; align-items: center; gap: 20px; }
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      width: 340px; height: 10px; border-radius: 5px;
+      background: #333; outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #fff; cursor: pointer;
+    }
+    .val { font-size: 36px; color: #fff; min-width: 60px; }
+    select {
+      background: #111; color: #fff; border: 1px solid #444;
+      font-family: 'DS-Digital', monospace; font-size: 28px;
+      padding: 8px 14px; border-radius: 4px; cursor: pointer;
+    }
+    input[type=number] {
+      background: #111; color: #fff; border: 1px solid #444;
+      font-family: 'DS-Digital', monospace; font-size: 28px;
+      padding: 8px 14px; border-radius: 4px; width: 180px;
+    }
+    .preview {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: inline-block; border: 2px solid #333;
+    }
+    button {
+      margin-top: 40px; padding: 18px 50px;
+      background: #222; color: #fff; border: 1px solid #555;
+      font-family: 'DS-Digital', monospace; font-size: 32px;
+      letter-spacing: 3px; border-radius: 6px; cursor: pointer;
+    }
+    button:active { background: #333; }
+    #status { margin-top: 20px; font-size: 28px; min-height: 36px; }
+    a { color: #555; font-size: 24px; text-decoration: none; display: inline-block; margin-top: 30px; }
+    hr { border-color: #222; margin: 30px 0; }
+  </style>
+</head>
+<body>
+  <h1>CLOCK CONFIG</h1>
+
+  <div class="section">
+    <label>DAY BRIGHTNESS</label>
+    <div class="row">
+      <input type="range" id="dayBright" min="10" max="100" value="75">
+      <span class="val" id="dayBrightVal">75%</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <label>NIGHT BRIGHTNESS</label>
+    <div class="row">
+      <input type="range" id="nightBright" min="10" max="100" value="40">
+      <span class="val" id="nightBrightVal">40%</span>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="section">
+    <label>DAY COLOR</label>
+    <div class="row">
+      <select id="dayScheme"></select>
+      <span class="preview" id="dayPreview"></span>
+    </div>
+  </div>
+
+  <div class="section">
+    <label>NIGHT COLOR</label>
+    <div class="row">
+      <select id="nightScheme"></select>
+      <span class="preview" id="nightPreview"></span>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="section">
+    <label>LATITUDE</label>
+    <input type="number" id="lat" step="0.01" value="0.0">
+  </div>
+
+  <div class="section">
+    <label>LONGITUDE</label>
+    <input type="number" id="lon" step="0.01" value="0.0">
+  </div>
+
+  <button id="saveBtn">SAVE</button>
+  <div id="status"></div>
+  <a href="/">← BACK TO CLOCK</a>
+
+  <script>
+    const SCHEMES = [
+      { name: 'RED',    bright: '#FF2A2A' },
+      { name: 'AMBER',  bright: '#FFAA00' },
+      { name: 'GREEN',  bright: '#2AFF2A' },
+      { name: 'WHITE',  bright: '#FFFFFF' },
+      { name: 'BLUE',   bright: '#2A8AFF' },
+      { name: 'PEWTER', bright: '#A0A8B0' },
+    ];
+
+    function populateSelect(sel, preview, current) {
+      SCHEMES.forEach((s, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = s.name;
+        if (i === current) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      preview.style.background = SCHEMES[current].bright;
+      sel.addEventListener('change', () => {
+        preview.style.background = SCHEMES[parseInt(sel.value)].bright;
+      });
+    }
+
+    function bindSlider(id, valId) {
+      const s = document.getElementById(id);
+      const v = document.getElementById(valId);
+      v.textContent = s.value + '%';
+      s.addEventListener('input', () => v.textContent = s.value + '%');
+    }
+
+    async function load() {
+      try {
+        const cfg = await fetch('/config.json?t=' + Date.now()).then(r => r.json());
+        document.getElementById('dayBright').value  = cfg.dayBright  ?? 75;
+        document.getElementById('nightBright').value = cfg.nightBright ?? 40;
+        document.getElementById('lat').value = cfg.lat ?? 0.0;
+        document.getElementById('lon').value = cfg.lon ?? 0.0;
+        bindSlider('dayBright', 'dayBrightVal');
+        bindSlider('nightBright', 'nightBrightVal');
+        populateSelect(document.getElementById('dayScheme'),   document.getElementById('dayPreview'),   cfg.dayScheme   ?? 3);
+        populateSelect(document.getElementById('nightScheme'), document.getElementById('nightPreview'), cfg.nightScheme ?? 4);
+      } catch(e) {
+        bindSlider('dayBright', 'dayBrightVal');
+        bindSlider('nightBright', 'nightBrightVal');
+        populateSelect(document.getElementById('dayScheme'),   document.getElementById('dayPreview'),   3);
+        populateSelect(document.getElementById('nightScheme'), document.getElementById('nightPreview'), 4);
+      }
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const cfg = {
+        dayBright:   parseInt(document.getElementById('dayBright').value),
+        nightBright: parseInt(document.getElementById('nightBright').value),
+        dayScheme:   parseInt(document.getElementById('dayScheme').value),
+        nightScheme: parseInt(document.getElementById('nightScheme').value),
+        lat: parseFloat(document.getElementById('lat').value),
+        lon: parseFloat(document.getElementById('lon').value),
+      };
+      try {
+        const r = await fetch('/save-config', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(cfg)
+        });
+        const j = await r.json();
+        document.getElementById('status').style.color = j.ok ? '#2AFF2A' : '#FF2A2A';
+        document.getElementById('status').textContent = j.ok ? 'SAVED' : 'ERROR';
+        setTimeout(() => document.getElementById('status').textContent = '', 3000);
+      } catch(e) {
+        document.getElementById('status').style.color = '#FF2A2A';
+        document.getElementById('status').textContent = 'ERROR';
+      }
+    });
+
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+[Unit]
+Description=Pi Clock
+After=graphical.target network.target
+
+[Service]
+User=admn
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=XAUTHORITY=/home/admn/.Xauthority
+ExecStart=/bin/bash /home/admn/pi-clock/start-clock.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target

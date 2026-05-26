@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920">
+  <title>Clock</title>
+  <style>
+    @font-face {
+      font-family: 'DS-Digital';
+      src: url('fonts/DS-DIGIB.TTF') format('truetype');
+      font-weight: bold;
+    }
+    @font-face {
+      font-family: 'DS-Digital';
+      src: url('fonts/DS-DIGI.TTF') format('truetype');
+      font-weight: normal;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      font-family: 'DS-Digital', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      user-select: none;
+      cursor: none;
+    }
+
+    #time {
+      font-size: 360px;
+      font-weight: bold;
+      line-height: 1;
+      letter-spacing: 0;
+    }
+    #time .d {
+      display: inline-block;
+      width: 0.57em;
+      text-align: center;
+    }
+
+    #date {
+      font-size: 96px;
+      letter-spacing: 4px;
+      margin-top: 14px;
+    }
+
+    #weather {
+      font-size: 72px;
+      letter-spacing: 3px;
+      margin-top: 10px;
+    }
+
+    #mining {
+      display: flex;
+      justify-content: space-between;
+      width: 1800px;
+      font-size: 60px;
+      letter-spacing: 3px;
+      margin-top: 10px;
+    }
+
+    #time.block-mode {
+      font-size: 260px;
+      letter-spacing: 6px;
+    }
+
+    /* Brightness overlay */
+    #brightness-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 40px;
+      z-index: 10;
+    }
+    #brightness-overlay.visible {
+      display: flex;
+    }
+    #brightness-label {
+      font-family: 'DS-Digital', monospace;
+      font-size: 60px;
+      letter-spacing: 4px;
+      color: #888;
+    }
+    #brightness-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 800px;
+      height: 12px;
+      border-radius: 6px;
+      background: #333;
+      outline: none;
+    }
+    #brightness-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #888;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="time">12:00:00 AM</div>
+  <div id="date">MON, JAN 01</div>
+  <div id="weather">--</div>
+  <div id="mining">
+    <span id="btc">BTC --</span>
+    <span id="bch">BCH --</span>
+  </div>
+
+  <div id="brightness-overlay">
+    <div id="brightness-label">BRIGHTNESS</div>
+    <input id="brightness-slider" type="range" min="10" max="100" value="75">
+  </div>
+
+  <script>
+    const SCHEMES = [
+      { bright: '#FF2A2A', dim: '#AA1A1A' }, // Red
+      { bright: '#FFAA00', dim: '#CC7700' }, // Amber
+      { bright: '#2AFF2A', dim: '#1AAA1A' }, // Green
+      { bright: '#FFFFFF', dim: '#AAAAAA' }, // White
+      { bright: '#CC44FF', dim: '#882299' }, // Purple
+      { bright: '#A0A8B0', dim: '#606870' }, // Pewter
+    ];
+    let scheme = 0;
+
+    const elTime     = document.getElementById('time');
+    const elDate     = document.getElementById('date');
+    const elWeather  = document.getElementById('weather');
+    const elBtc      = document.getElementById('btc');
+    const elBch      = document.getElementById('bch');
+    const elMining   = document.getElementById('mining');
+    const elOverlay  = document.getElementById('brightness-overlay');
+    const elSlider   = document.getElementById('brightness-slider');
+    const elBrLabel  = document.getElementById('brightness-label');
+
+    function applyScheme() {
+      const c = SCHEMES[scheme];
+      elTime.style.color    = c.bright;
+      elDate.style.color    = c.dim;
+      elWeather.style.color = c.dim;
+      elMining.style.color  = c.dim;
+      elBrLabel.style.color = c.dim;
+      elSlider.style.accentColor = c.bright;
+    }
+
+    // ── Config (overridden by config.json) ───────────────────────────────────
+    let LAT = 0.0, LON = 0.0;
+    let DAY_BRIGHT = 75, NIGHT_BRIGHT = 40;
+    let DAY_SCHEME = 3, NIGHT_SCHEME = 4;
+    let lastMode = null;
+    let WEATHER_URL   = '/weather.json';
+    let CLEAR_BLK_URL = '/clear-block';
+
+    async function loadConfig() {
+      try {
+        const cfg = await fetch('/config.json?t=' + Date.now()).then(r => r.json());
+        if (cfg.lat         != null) LAT           = cfg.lat;
+        if (cfg.lon         != null) LON           = cfg.lon;
+        if (cfg.dayBright   != null) DAY_BRIGHT    = cfg.dayBright;
+        if (cfg.nightBright != null) NIGHT_BRIGHT  = cfg.nightBright;
+        if (cfg.dayScheme   != null) DAY_SCHEME    = cfg.dayScheme;
+        if (cfg.nightScheme != null) NIGHT_SCHEME  = cfg.nightScheme;
+        if (cfg.weatherUrl  != null) WEATHER_URL   = cfg.weatherUrl;
+        if (cfg.clearBlkUrl != null) CLEAR_BLK_URL = cfg.clearBlkUrl;
+      } catch(e) {}
+    }
+
+    function getSunTimes(date) {
+      const rad = Math.PI / 180;
+      // Algorithm expects Julian Day Number (noon-based integer), not midnight JD
+      const jd = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000 + 2440588;
+      const n = jd - 2451545.0 + 0.0008;
+      const jStar = n - LON / 360.0;
+      const M = ((357.5291 + 0.98560028 * jStar) % 360 + 360) % 360 * rad;
+      const C = 1.9148 * Math.sin(M) + 0.0200 * Math.sin(2*M) + 0.0003 * Math.sin(3*M);
+      const lam = ((280.4665 + 0.98564736 * jStar + C) % 360 + 360) % 360;
+      const jTransit = 2451545.0 + jStar + 0.0053*Math.sin(M) - 0.0069*Math.sin(2*lam*rad);
+      const delta = Math.asin(Math.sin(lam * rad) * Math.sin(23.44 * rad));
+      const cosOmega = (Math.sin(-0.833 * rad) - Math.sin(LAT*rad)*Math.sin(delta)) /
+                       (Math.cos(LAT*rad) * Math.cos(delta));
+      if (cosOmega > 1 || cosOmega < -1) return null;
+      const omega = Math.acos(cosOmega) / rad / 360.0;
+      const utcToLocal = jd => {
+        const d = new Date((jd - 2440587.5) * 86400000);
+        return d.getHours() + d.getMinutes()/60 + d.getSeconds()/3600;
+      };
+      return { sunrise: utcToLocal(jTransit - omega), sunset: utcToLocal(jTransit + omega) };
+    }
+
+    function getMode() {
+      const now = new Date();
+      const t = now.getHours() + now.getMinutes()/60;
+      const sun = getSunTimes(now);
+      if (!sun) return 'day';
+      return (t >= sun.sunrise && t <= sun.sunset) ? 'day' : 'night';
+    }
+
+    // Brightness is always pure slider — auto-dim only sets slider at mode change
+    function applyBrightness() {
+      const opacity = parseInt(elSlider.value) / 100;
+      elTime.style.opacity    = opacity;
+      elDate.style.opacity    = opacity;
+      elWeather.style.opacity = opacity;
+      elMining.style.opacity  = opacity;
+    }
+
+    function checkAutoDim() {
+      if (blockAnimating) return;
+      const mode = getMode();
+      if (mode !== lastMode) {
+        lastMode = mode;
+        elSlider.value = mode === 'day' ? DAY_BRIGHT : NIGHT_BRIGHT;
+        scheme = mode === 'day' ? DAY_SCHEME : NIGHT_SCHEME;
+        applyScheme();
+        applyBrightness();
+      }
+    }
+
+    elSlider.addEventListener('input', () => {
+      applyBrightness();
+      elBrLabel.textContent = `BRIGHTNESS  ${elSlider.value}%`;
+    });
+
+    // Double-tap / double-click detection
+    let lastTap = 0;
+    let overlayVisible = false;
+
+    document.body.addEventListener('click', (e) => {
+      if (blockAnimating) {
+        stopBlockAnimation();
+        return;
+      }
+      if (overlayVisible) {
+        // any tap outside slider dismisses overlay
+        if (!elSlider.contains(e.target)) {
+          overlayVisible = false;
+          elOverlay.classList.remove('visible');
+        }
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastTap < 350) {
+        // double tap — show brightness overlay
+        overlayVisible = true;
+        elBrLabel.textContent = `BRIGHTNESS  ${elSlider.value}%`;
+        elOverlay.classList.add('visible');
+        lastTap = 0;
+      } else {
+        lastTap = now;
+      }
+    });
+
+    // Single tap (resolved after double-tap window) — cycle color
+    document.body.addEventListener('click', (() => {
+      let pending = null;
+      return (e) => {
+        if (overlayVisible) return;
+        if (elSlider.contains(e.target)) return;
+        const wasAnimating = blockAnimating;
+        clearTimeout(pending);
+        pending = setTimeout(() => {
+          if (wasAnimating) return;
+          if (Date.now() - lastTap > 350) {
+            scheme = (scheme + 1) % SCHEMES.length;
+            applyScheme();
+          }
+        }, 360);
+      };
+    })());
+
+    const DAYS   = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN',
+                    'JUL','AUG','SEP','OCT','NOV','DEC'];
+
+    function _drawClock() {
+      const now  = new Date();
+      let   h    = now.getHours();
+      const m    = now.getMinutes();
+      const s    = now.getSeconds();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      const timeStr = `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')} ${ampm}`;
+      elTime.innerHTML = timeStr.replace(/[0-9]/g, d => `<span class="d">${d}</span>`);
+      elDate.textContent =
+        `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${String(now.getDate()).padStart(2,'0')}`;
+    }
+
+    function updateClock() {
+      if (blockAnimating) return;
+      _drawClock();
+    }
+
+    // ── Block detection animation ─────────────────────────────────────────────
+    let blockChain     = null;
+    let blockAnimating = false;
+    let blockTimer     = null;
+    let blockSpin      = null;
+    const ANIM_AMBER   = '#FFAA00';
+
+    function _spinFrame() {
+      const d = () => Math.floor(Math.random() * 10);
+      const ampm = Math.random() > 0.5 ? 'PM' : 'AM';
+      const s = `${d()}:${d()}${d()}:${d()}${d()} ${ampm}`;
+      elTime.innerHTML = s.replace(/[0-9]/g, n => `<span class="d">${n}</span>`);
+    }
+
+    function _restoreClock() {
+      elTime.classList.remove('block-mode');
+      elTime.style.color = SCHEMES[scheme].bright;
+      elDate.style.color = SCHEMES[scheme].dim;
+      _drawClock();
+    }
+
+    function stopBlockAnimation() {
+      if (blockTimer)  { clearTimeout(blockTimer);   blockTimer = null; }
+      if (blockSpin)   { clearInterval(blockSpin);   blockSpin  = null; }
+      blockAnimating = false;
+      blockChain     = null;
+      _restoreClock();
+      fetch(CLEAR_BLK_URL, { method: 'POST' }).catch(() => {});
+    }
+
+    function _blockCycle() {
+      if (!blockAnimating) return;
+
+      // Phase 1: digits go haywire (2.5s)
+      elTime.classList.remove('block-mode');
+      elTime.style.color = ANIM_AMBER;
+      elDate.style.color = ANIM_AMBER;
+      _spinFrame();
+      blockSpin = setInterval(_spinFrame, 60);
+
+      blockTimer = setTimeout(() => {
+        clearInterval(blockSpin); blockSpin = null;
+        if (!blockAnimating) return;
+
+        // Phase 2: settle — real time flashes back (0.4s)
+        _restoreClock();
+
+        blockTimer = setTimeout(() => {
+          if (!blockAnimating) return;
+
+          // Phase 3: BLOCK FOUND (3s)
+          elTime.classList.add('block-mode');
+          elTime.style.color = ANIM_AMBER;
+          elDate.style.color = ANIM_AMBER;
+          elTime.textContent = 'BLOCK FOUND';
+          elDate.textContent = blockChain;
+
+          blockTimer = setTimeout(() => {
+            if (!blockAnimating) return;
+
+            // Phase 4: back to clock (0.6s), then repeat
+            _restoreClock();
+
+            blockTimer = setTimeout(() => {
+              if (blockAnimating) _blockCycle();
+            }, 600);
+          }, 3000);
+        }, 400);
+      }, 2500);
+    }
+
+    function startBlockAnimation(chain) {
+      if (blockAnimating) return;
+      blockChain     = chain;
+      blockAnimating = true;
+      _blockCycle();
+    }
+
+    async function updateWeather() {
+      try {
+        const r    = await fetch(WEATHER_URL + '?t=' + Date.now());
+        const data = await r.json();
+        elWeather.textContent = data.weather      || '--';
+        elBtc.textContent     = data.btc_display  || 'BTC --';
+        elBch.textContent     = data.bch_display  || 'BCH --';
+        if (data.block_chain && !blockAnimating) {
+          startBlockAnimation(data.block_chain);
+        }
+      } catch (e) { /* keep existing */ }
+    }
+
+    loadConfig().then(() => {
+      scheme = getMode() === 'day' ? DAY_SCHEME : NIGHT_SCHEME;
+      applyScheme();
+      checkAutoDim();
+      updateWeather();
+    });
+    updateClock();
+    setInterval(updateClock, 1000);
+    setInterval(checkAutoDim, 30000);
+    setInterval(updateWeather, 60000);
+
+    // Pixel shift every 3 minutes — OLED burn-in prevention
+    setInterval(() => {
+      const x = Math.floor(Math.random() * 7) - 3; // -3 to +3 px
+      const y = Math.floor(Math.random() * 7) - 3;
+      document.body.style.transform = `translate(${x}px, ${y}px)`;
+    }, 180000);
+  </script>
+</body>
+</html>
