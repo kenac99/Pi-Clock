@@ -1,4 +1,4 @@
-# Pi Clock
+# Pi5 Clock
 
 A full-screen DS-Digital clock for Raspberry Pi with a 1080×1920 portrait display. Features live weather, auto day/night color schemes, brightness control, and optional mining pool stats.
 
