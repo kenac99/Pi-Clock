@@ -4,9 +4,10 @@ A full-screen DS-Digital clock for Raspberry Pi with a 1080×1920 portrait displ
 
 ![Clock showing time, date, weather, and mining stats](screenshot.jpg)
 
-## Hardware
+## Hardware & OS
 
 - Raspberry Pi 5
+- Raspberry Pi OS (Debian Trixie / 13), Wayland + labwc compositor
 - WaveShare 10.1" 1080×1920 HDMI display (portrait orientation)
 - 52Pi N04 NVMe hat + NVMe SSD (recommended for performance)
 
