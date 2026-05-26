@@ -2,7 +2,7 @@
 
 A full-screen DS-Digital clock for Raspberry Pi with a 1080×1920 portrait display. Features live weather, auto day/night color schemes, brightness control, and optional mining pool stats.
 
-![Clock showing time, date, weather, and mining stats](screenshot.png)
+![Clock showing time, date, weather, and mining stats](screenshot.jpg)
 
 ## Hardware
 
