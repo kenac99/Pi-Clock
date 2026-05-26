@@ -3,12 +3,26 @@
 # Run on tahoe via cron every minute:
 #   * * * * * /usr/bin/python3 /root/pi-clock/update-weather.py
 
-import json, os, subprocess, sys
+import json, os, subprocess, sys, urllib.request
 
 SCRIPT_DIR    = os.path.dirname(os.path.abspath(__file__))
 OUT           = os.path.join(SCRIPT_DIR, "weather.json")
 BTC_BLOCKS    = "/vault/btc/ckpool/logs/pool/blocks"
 BCH_BLOCKS    = "/vault/bch/asic/logs/pool/blocks"
+
+
+def get_net_difficulty(port):
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/",
+            data=b'{"jsonrpc":"1.0","method":"getblockchaininfo","params":[]}',
+            headers={"Content-Type": "application/json",
+                     "Authorization": "Basic " + __import__("base64").b64encode(b"miner:lakers").decode()}
+        )
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return json.loads(r.read())["result"]["difficulty"]
+    except Exception:
+        return None
 
 
 def count_blocks(directory):
@@ -49,9 +63,11 @@ def fmt_difficulty(d):
 
 btc_hr, btc_bs = query_pool("ckstats_btc")
 bch_hr, bch_bs = query_pool("ckstats_bch")
+btc_diff = get_net_difficulty(8323)
+bch_diff = get_net_difficulty(8322)
 
-btc_display = f"BTC {fmt_hashrate(btc_hr)} · Best {fmt_difficulty(btc_bs)}" if btc_hr else "BTC --"
-bch_display = f"BCH {fmt_hashrate(bch_hr)} · Best {fmt_difficulty(bch_bs)}" if bch_hr else "BCH --"
+btc_display = f"BTC {fmt_hashrate(btc_hr)} · Best {fmt_difficulty(btc_bs)} · Diff {fmt_difficulty(btc_diff)}" if btc_hr else "BTC --"
+bch_display = f"BCH {fmt_hashrate(bch_hr)} · Best {fmt_difficulty(bch_bs)} · Diff {fmt_difficulty(bch_diff)}" if bch_hr else "BCH --"
 
 existing = {}
 if os.path.exists(OUT):
