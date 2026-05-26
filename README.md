@@ -20,7 +20,7 @@ A full-screen DS-Digital clock for Raspberry Pi with a 1080×1920 portrait displ
 - Double-tap for brightness overlay
 - Optional live weather from an Ambient Weather station
 - Optional mining pool stats (ckpool/asicseer — BTC + BCH side by side)
-- **Block detection animation**: digits go haywire → "BLOCK FOUND" → loops until tapped
+- **Block detection animation**: digits go haywire → "BLOCK FOUND" → loops until tapped - Not Tested, Yet.
 - OLED burn-in prevention (pixel shift every 3 minutes)
 
 ## Font
