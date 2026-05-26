@@ -32,7 +32,7 @@ The DS-Digital font by Dusit Supasawat is free for personal use. Download it fro
 ### 1. Clone and install font
 
 ```bash
-git clone https://github.com/youruser/pi-clock.git ~/pi-clock
+git clone https://github.com/kenac99/pi-clock.git ~/pi-clock
 cd ~/pi-clock
 mkdir fonts
 # Place DS-DIGI.TTF and DS-DIGIB.TTF in fonts/
