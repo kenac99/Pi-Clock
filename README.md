@@ -133,3 +133,4 @@ When a block is found, the clock triggers the block detection animation automati
 | `weather.json` | Live data file written by cron scripts (gitignored) |
 | `pi-clock.service` | systemd service unit |
 | `setup-pi.sh` | One-time Pi setup (NTP, service install) |
+Enjoy
