@@ -63,11 +63,9 @@ def fmt_difficulty(d):
 
 btc_hr, btc_bs = query_pool("ckstats_btc")
 bch_hr, bch_bs = query_pool("ckstats_bch")
-btc_diff = get_net_difficulty(8323)
-bch_diff = get_net_difficulty(8322)
 
-btc_display = f"BTC {fmt_hashrate(btc_hr)} · Best {fmt_difficulty(btc_bs)} · Diff {fmt_difficulty(btc_diff)}" if btc_hr else "BTC --"
-bch_display = f"BCH {fmt_hashrate(bch_hr)} · Best {fmt_difficulty(bch_bs)} · Diff {fmt_difficulty(bch_diff)}" if bch_hr else "BCH --"
+btc_display = f"BTC {fmt_hashrate(btc_hr)} · Best {fmt_difficulty(btc_bs)}" if btc_hr else "BTC --"
+bch_display = f"BCH {fmt_hashrate(bch_hr)} · Best {fmt_difficulty(bch_bs)}" if bch_hr else "BCH --"
 
 existing = {}
 if os.path.exists(OUT):
