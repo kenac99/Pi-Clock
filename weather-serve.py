@@ -43,6 +43,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._cors()
             self.end_headers()
             self.wfile.write(body)
+        elif self.path.startswith("/weather.json"):
+            weather_path = os.path.join(SCRIPT_DIR, "weather.json")
+            try:
+                with open(weather_path, "rb") as f:
+                    body = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self._cors()
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception:
+                self.send_response(404)
+                self.end_headers()
         else:
             super().do_GET()
 
