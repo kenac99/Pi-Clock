@@ -8,7 +8,7 @@ A full-screen DS-Digital clock for Raspberry Pi with a 1080×1920 portrait displ
 
 - Raspberry Pi 5
 - Raspberry Pi OS (Debian Trixie / 13), Wayland + labwc compositor
-- WaveShare 10.1" 1080×1920 HDMI display (portrait orientation)
+- WaveShare 5.5" 1080×1920 HDMI display (portrait orientation)
 - 52Pi N04 NVMe hat + NVMe SSD (recommended for performance)
 
 ## Features
