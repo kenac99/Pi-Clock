@@ -8,7 +8,7 @@ A full-screen DS-Digital clock for Raspberry Pi with a 1080×1920 portrait displ
 
 - Raspberry Pi 5
 - Raspberry Pi OS (Debian Trixie / 13), Wayland + labwc compositor
-- WaveShare 5.5" 1080×1920 HDMI display (portrait orientation)
+- WaveShare 5.5" 1080×1920 HDMI AMOLED display (portrait orientation)
 - 52Pi N04 NVMe hat + NVMe SSD (recommended for performance)
 
 ## Features
@@ -25,7 +25,7 @@ A full-screen DS-Digital clock for Raspberry Pi with a 1080×1920 portrait displ
 
 ## Font
 
-The DS-Digital font by Dusit Supasawat is free for personal use. Download it from [dafont.com/ds-digital.font](https://www.dafont.com/ds-digital.font) and place `DS-DIGI.TTF` and `DS-DIGIB.TTF` in a `fonts/` subdirectory.
+The DS-Digital font by Dusit Supasawat is free for personal use. Download it from [dafont.com/ds-digital.font](https://www.dafont.com/ds-digital.font) and place `DS-DIGI.TTF` and `DS-DIGIB.TTF` in[...]
 
 ## Setup
 
@@ -69,7 +69,59 @@ Hidden=true
 EOF
 ```
 
-### 5. Set your location
+### 5. USB Display Reset (WaveShare 5.5" AMOLED — fix for soft reboot hangs)
+
+The WaveShare 5.5" AMOLED display may hang during soft reboots without proper USB power cycling. Install `uhubctl` to automatically reset USB power:
+
+```bash
+sudo apt install uhubctl
+```
+
+Create the systemd service at `/etc/systemd/system/usb-display-reset.service`:
+
+```ini
+[Unit]
+Description=Reset USB power to Waveshare 5.5" AMOLED display on boot
+Before=display-manager.service graphical.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/uhubctl -l 3 -p 2 -a off
+ExecStartPost=/bin/sleep 3
+ExecStartPost=/usr/sbin/uhubctl -l 3 -p 2 -a on
+ExecStartPost=/bin/sleep 2
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable usb-display-reset.service
+```
+
+**Configuration notes:**
+- `-l 3` — hub 3 (the Pi 5's USB 2.0 xHCI controller)
+- `-p 2` — port 2 (where the display's USB is connected)
+- Adjust `-p` if your display is connected to a different USB port
+
+To find your display's USB port:
+
+```bash
+sudo uhubctl
+```
+
+To test manually:
+
+```bash
+sudo uhubctl -l 3 -p 2 -a off && sleep 3 && sudo uhubctl -l 3 -p 2 -a on
+```
+
+### 6. Set your location
 
 Open a browser and navigate to `http://<pi-ip>:8080/config` to set latitude/longitude for accurate sunrise/sunset times and choose your day/night color schemes and brightness levels.
 
@@ -86,7 +138,7 @@ Or edit `config.json` directly:
 }
 ```
 
-### 6. Start
+### 7. Start
 
 ```bash
 sudo systemctl start pi-clock
@@ -133,4 +185,5 @@ When a block is found, the clock triggers the block detection animation automati
 | `weather.json` | Live data file written by cron scripts (gitignored) |
 | `pi-clock.service` | systemd service unit |
 | `setup-pi.sh` | One-time Pi setup (NTP, service install) |
+| `usb-display-reset.service` | systemd service for USB power reset on boot |
 Enjoy
